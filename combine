@@ -1,0 +1,206 @@
+import processing.opengl.*;
+import gab.opencv.*;
+import processing.video.*;
+import java.awt.*;
+import blobDetection.*;
+
+Capture video;
+OpenCV opencv;
+BlobDetection theBlobDetection;
+
+ParticleSystem ps;
+float yoff = 0.0;
+float yoff2 = 0.0;
+//PImage sprite;  
+PImage backgroundImg ;
+PImage bridge;
+
+int fallSize = 300;
+int charTotal = 0;
+
+int initX = 112;
+int initY =151;
+float scaleVideo =0.7;
+PImage adaptive;
+color pink = color(94, 89, 86);
+boolean newFrame=false;
+PImage imgBlob;
+int figureWidth=0;
+int waterFallValue;
+
+void setup() {
+  size(495, 720, OPENGL);
+  orientation(LANDSCAPE);
+  ps = new ParticleSystem(500);
+  backgroundImg = loadImage("background.png");
+  bridge = loadImage("bridge.png");
+
+  video = new Capture(this, 192, 144);
+  opencv = new OpenCV(this, 192, 144);
+  opencv.loadCascade(OpenCV.CASCADE_FRONTALFACE);  
+
+  video.start();
+
+  imgBlob = new PImage(400, 400); 
+  theBlobDetection = new BlobDetection(imgBlob.width, imgBlob.height);
+  theBlobDetection.setPosDiscrimination(true);
+  theBlobDetection.setThreshold(0.2f);
+
+  // Writing to the depth buffer is disabled to avoid rendering
+  // artifacts due to the fact that the particles are semi-transparent
+  // but not z-sorted.
+  hint(DISABLE_DEPTH_MASK);
+} 
+
+void draw () {
+
+  background(0);
+  image(backgroundImg, 0, 0);
+
+  float expen = map(figureWidth,30,200,1,5);
+  ps.update(expen);
+  ps.display();
+  waterFallValue = int(map(figureWidth,30,200,0,500));
+  ps.setEmitter(initX, initY,waterFallValue);
+
+  //------------------------Camera-------------------------------
+  //Particle pl = new Particle(img);
+  /*
+  float camZ = (height/2.0) / tan(PI*60.0 / 360.0);
+   camera(mouseX, mouseY, camZ, // Camera location
+   width/2.0, height/2.0, 0, // Camera target
+   0, 1, 0);
+   
+   fill(255);
+   textSize(16);
+   text("Frame rate: " + int(frameRate), 10, 20);
+   */
+  //-------------------------Wave-----------------------------
+  fill(247, 243, 232);
+  // We are going to draw a polygon out of the wave points
+  noStroke();
+  beginShape(); 
+
+  float xoff = 0;       // Option #1: 2D Noise
+  // float xoff = yoff; // Option #2: 1D Noise
+
+  // Iterate over horizontal pixels
+  for (float x = 0; x <= width; x += 10) {
+    // Calculate a y value according to noise, map to 
+    float y = map(noise(xoff, yoff), 0, 1, 600, 500); // Option #1: 2D Noise
+    // float y = map(noise(xoff), 0, 1, 200,300);    // Option #2: 1D Noise
+
+    // Set the vertex
+    vertex(x, y); 
+    // Increment x dimension for noise
+    xoff += 0.03;
+  }
+  // increment y dimension for noise
+  yoff += 0.01;
+  vertex(width, height);
+  vertex(0, height);
+  endShape(CLOSE);
+
+  //-------------------------Wave-----------------------------
+  fill(227, 220, 210);
+  // We are going to draw a polygon out of the wave points
+  noStroke();
+  beginShape(); 
+
+  float xoff2 = 0;       // Option #1: 2D Noise
+  // float xoff = yoff; // Option #2: 1D Noise
+
+  // Iterate over horizontal pixels
+  for (float x = 0; x <= width; x += 10) {
+    // Calculate a y value according to noise, map to 
+    float y = map(noise(xoff2, yoff2), 0, 1, 610, 520); // Option #1: 2D Noise
+    // float y = map(noise(xoff), 0, 1, 200,300);    // Option #2: 1D Noise
+
+    // Set the vertex
+    vertex(x, y); 
+    // Increment x dimension for noise
+    xoff2 += 0.04;
+  }
+  // increment y dimension for noise
+  yoff2 += 0.02;
+  vertex(width, height);
+  vertex(0, height);
+  endShape(CLOSE);
+
+  //-------------------------video------------------------
+  //scale(2);
+  opencv.loadImage(video);
+  opencv.adaptiveThreshold(591, 1);
+  adaptive = opencv.getSnapshot();
+  image(transparentImage(adaptive), 230, 160 );
+
+  //------------------------detect Motion-----------------
+
+  if (newFrame) {
+    newFrame=false;
+    //image(video, 0, 0, 192, 144);
+    imgBlob.copy(video, 0, 0, video.width, video.height, 
+    0, 0, video.width, video.height);
+    theBlobDetection.computeBlobs(imgBlob.pixels);
+    drawBlobsAndEdges();
+  }
+  //--------------------------bridge-----------------------
+  image(bridge, 0, 200);
+}
+
+void captureEvent(Capture c) {
+  c.read();
+  newFrame = true;
+}
+PImage transparentImage (PImage img) {
+  PImage transImage ;
+  transImage = img;
+  for (int i = 0; i < img.width * img.height; i++) {
+    if ((img.pixels[i] & 0x00FFFFFF) == 0x00FFFFFF) {
+      transImage.pixels[i] = 0;
+    }
+    else {
+      transImage.pixels[i] = pink;
+    }
+  }
+
+  transImage.format = ARGB;
+  transImage.updatePixels();
+  return transImage;
+}
+
+void drawBlobsAndEdges() {
+  noFill();
+  Blob b;
+  EdgeVertex eA, eB;
+  float maxLeft=width;
+  float maxRight=0;
+  
+  for (int n=0 ; n<theBlobDetection.getBlobNb() ; n++)
+  {
+    b=theBlobDetection.getBlob(n);
+
+    if (b!=null)
+    {
+
+      // Blobs
+
+        //strokeWeight(1);
+        //stroke(255, 0, 0);
+        //rect(
+        //b.xMin*width, b.yMin*height, 
+        //b.w*width, b.h*height
+         // );
+        if (b.xMin*width<maxLeft) {
+          maxLeft=b.xMin*width;
+        }
+        if (b.xMin*width+b.w*width>maxRight) {
+          maxRight =b.xMin*width+b.w*width;
+        }
+        
+        figureWidth = int(maxRight-maxLeft);
+        println(figureWidth);
+      
+    }
+  }
+}
