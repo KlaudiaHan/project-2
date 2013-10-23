@@ -1,0 +1,62 @@
+class ParticleSystem {
+  ArrayList<Particle> particles;
+  ArrayList<PImage> chineseCharImgs;
+
+  PShape particleShape;
+
+  ParticleSystem(int pNum) {
+    pushChars();
+    particles = new ArrayList<Particle>();
+    particleShape = createShape(PShape.GROUP);
+    
+    for (int i = 0; i < pNum; i++) {
+      Particle p = new Particle(randromImage()); 
+      p.Id = i;
+      particles.add(p);
+      particleShape.addChild(p.getShape());
+    }
+    
+  }
+  
+  
+  
+  
+
+  void update(float val) {
+    for (Particle p : particles) {
+      p.update(val);
+    }
+  }
+
+  void setEmitter(float x, float y,int num) {
+    for (Particle p : particles) {
+      if (p.isDead()) {
+        if(p.Id<num){
+          //println(p.Id);
+        p.rebirth(x, y);
+        }
+      }
+    }
+  }
+  
+
+  void display() {
+    shape(particleShape);
+  }
+  
+  void pushChars(){
+    chineseCharImgs = new ArrayList<PImage>();
+    for(int i=0;i<58;i++){
+      PImage img = loadImage(i+".png");
+      chineseCharImgs.add(img);
+    }
+    //println(chineseCharImgs);
+  }
+
+  PImage randromImage() {
+    PImage chineseChars;
+    int randomVal = int(random(57));
+    chineseChars =chineseCharImgs.get(randomVal);
+    return chineseChars;
+  }
+}
